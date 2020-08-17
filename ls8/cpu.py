@@ -7,7 +7,15 @@ class CPU:
 
     def __init__(self):
         """Construct a new CPU."""
-        pass
+        self.ram = [0] * 256
+        self.registers = [0] * 8
+
+    def ram_read(self, address):
+        return self.ram[address]
+
+    def ram_write(self, address, value):
+        self.ram[address] = value
+
 
     def load(self):
         """Load a program into memory."""
@@ -62,4 +70,33 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
-        pass
+        self.load()
+        
+        running = True
+
+        HLT = 0b00000001
+        LDI = 0b10000010
+        PRN = 0b01000111
+
+        pc = 0
+
+        op_length = 1
+
+        while running:
+            opcode = self.ram_read(pc)
+            if opcode == HLT:
+                running = False
+            elif opcode == LDI:
+                register_address = self.ram_read(pc + 1)
+                value = self.ram_read(pc + 2)
+                self.registers[register_address] = value
+                op_length = 3
+            elif opcode == PRN:
+                register_address = self.ram_read(pc + 1)
+                value = self.registers[register_address]
+                print(value)
+                op_length = 2
+            else:
+                raise Exception('Invalid Op Code')
+
+            pc += op_length
