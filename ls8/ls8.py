@@ -14,5 +14,5 @@ if sys.argv[1]:
 else:
     raise Exception('No program specified')
 
-cpu.load()
+cpu.load(toRun)
 cpu.run()

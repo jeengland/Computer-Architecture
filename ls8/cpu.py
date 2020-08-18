@@ -17,22 +17,15 @@ class CPU:
     def ram_write(self, address, value):
         self.ram[address] = value
 
-    def load(self):
+    def load(self, filename):
         """Load a program into memory."""
 
         address = 0
 
-        # For now, we've just hardcoded a program:
-
-        program = [
-            # From print8.ls8
-            0b10000010,  # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111,  # PRN R0
-            0b00000000,
-            0b00000001,  # HLT
-        ]
+        file = open(filename, 'r')
+        lines = file.readlines()
+        inv = ['\n', '#']
+        program = [int(line[:8], 2) for line in lines if line[0] not in inv]
 
         for instruction in program:
             self.ram[address] = instruction
