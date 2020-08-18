@@ -69,7 +69,6 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
-        self.load()
 
         running = True
 
