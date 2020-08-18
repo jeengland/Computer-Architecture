@@ -7,5 +7,12 @@ from cpu import *
 
 cpu = CPU()
 
-cpu.load()
+toRun = None
+
+if sys.argv[1]:
+    toRun = sys.argv[1]
+else:
+    raise Exception('No program specified')
+
+cpu.load(toRun)
 cpu.run()
