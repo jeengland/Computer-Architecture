@@ -9,7 +9,7 @@ class CPU:
     def __init__(self):
         """Construct a new CPU."""
         self.ram = [0] * 256
-        self.registers = [0] * 8
+        self.reg = [0] * 8
 
     def ram_read(self, address):
         return self.ram[address]
@@ -36,7 +36,8 @@ class CPU:
 
         if op == "ADD":
             self.reg[reg_a] += self.reg[reg_b]
-        # elif op == "SUB": etc
+        elif op == "MUL":
+            self.reg[reg_a] *= self.reg[reg_b]
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -68,6 +69,7 @@ class CPU:
         HLT = 0b00000001
         LDI = 0b10000010
         PRN = 0b01000111
+        MUL = 0b10100010
 
         pc = 0
 
@@ -80,13 +82,18 @@ class CPU:
             elif opcode == LDI:
                 register_address = self.ram_read(pc + 1)
                 value = self.ram_read(pc + 2)
-                self.registers[register_address] = value
+                self.reg[register_address] = value
                 op_length = 3
             elif opcode == PRN:
                 register_address = self.ram_read(pc + 1)
-                value = self.registers[register_address]
+                value = self.reg[register_address]
                 print(value)
                 op_length = 2
+            elif opcode == MUL:
+                reg_a = self.ram_read(pc + 1)
+                reg_b = self.ram_read(pc + 2)
+                self.alu('MUL', reg_a, reg_b)
+                op_length = 3
             else:
                 raise Exception('Invalid Op Code')
 
