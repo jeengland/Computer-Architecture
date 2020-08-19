@@ -98,7 +98,6 @@ class CPU:
 
         def handle_PUSH():
             self.reg[7] -= 1
-            self.reg[7] &= 0xff
             sp = self.reg[7]
 
             index = self.ram_read(pc + 1)
