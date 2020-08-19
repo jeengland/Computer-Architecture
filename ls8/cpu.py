@@ -70,6 +70,8 @@ class CPU:
         LDI = 0b10000010
         PRN = 0b01000111
         MUL = 0b10100010
+        PUSH = 0b01000101
+        POP = 0b01000110
 
         branches = {}
 
@@ -94,10 +96,30 @@ class CPU:
             self.alu('MUL', reg_a, reg_b)
             return 3
 
+        def handle_PUSH():
+            self.reg[7] -= 1
+            self.reg[7] &= 0xff
+            sp = self.reg[7]
+
+            index = self.ram_read(pc + 1)
+            value = self.reg[index]
+            self.ram_write(sp, value)
+            return 2
+
+        def handle_POP():
+            sp = self.reg[7]
+            index = self.ram_read(pc + 1)
+            value = self.ram_read(sp)
+            self.reg[index] = value
+            self.reg[7] += 1
+            return 2
+
         branches[HLT] = handle_HLT
         branches[LDI] = handle_LDI
         branches[PRN] = handle_PRN
         branches[MUL] = handle_MUL
+        branches[PUSH] = handle_PUSH
+        branches[POP] = handle_POP
 
         pc = 0
 
