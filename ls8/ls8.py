@@ -9,7 +9,7 @@ cpu = CPU()
 
 toRun = None
 
-if sys.argv[1]:
+if len(sys.argv) > 1:
     toRun = sys.argv[1]
 else:
     raise Exception('No program specified')

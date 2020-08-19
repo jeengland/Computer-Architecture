@@ -71,30 +71,39 @@ class CPU:
         PRN = 0b01000111
         MUL = 0b10100010
 
-        pc = 0
+        branches = {}
 
-        op_length = 1
+        def handle_HLT():
+            return 0
+
+        def handle_LDI():
+            register_address = self.ram_read(pc + 1)
+            value = self.ram_read(pc + 2)
+            self.reg[register_address] = value
+            return 3
+
+        def handle_PRN():
+            register_address = self.ram_read(pc + 1)
+            value = self.reg[register_address]
+            print(value)
+            return 2
+
+        def handle_MUL():
+            reg_a = self.ram_read(pc + 1)
+            reg_b = self.ram_read(pc + 2)
+            self.alu('MUL', reg_a, reg_b)
+            return 3
+
+        branches[HLT] = handle_HLT
+        branches[LDI] = handle_LDI
+        branches[PRN] = handle_PRN
+        branches[MUL] = handle_MUL
+
+        pc = 0
 
         while running:
             opcode = self.ram_read(pc)
-            if opcode == HLT:
+            op_length = branches[opcode]()
+            if op_length == 0:
                 running = False
-            elif opcode == LDI:
-                register_address = self.ram_read(pc + 1)
-                value = self.ram_read(pc + 2)
-                self.reg[register_address] = value
-                op_length = 3
-            elif opcode == PRN:
-                register_address = self.ram_read(pc + 1)
-                value = self.reg[register_address]
-                print(value)
-                op_length = 2
-            elif opcode == MUL:
-                reg_a = self.ram_read(pc + 1)
-                reg_b = self.ram_read(pc + 2)
-                self.alu('MUL', reg_a, reg_b)
-                op_length = 3
-            else:
-                raise Exception('Invalid Op Code')
-
             pc += op_length
