@@ -10,6 +10,9 @@ class CPU:
         """Construct a new CPU."""
         self.ram = [0] * 256
         self.reg = [0] * 8
+        self.pc = 0
+        self.running = True
+        self.flags = 0b00000000
 
     def ram_read(self, address):
         return self.ram[address]
@@ -38,6 +41,16 @@ class CPU:
             self.reg[reg_a] += self.reg[reg_b]
         elif op == "MUL":
             self.reg[reg_a] *= self.reg[reg_b]
+        elif op == "CMP":
+            self.flags = 0b00000000
+            a = self.reg[reg_a]
+            b = self.reg[reg_b]
+            if a == b:
+                self.flags |= 0b00000001
+            elif a > b:
+                self.flags |= 0b00000010
+            else:
+                self.flags |= 0b00000100
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -72,46 +85,77 @@ class CPU:
         MUL = 0b10100010
         PUSH = 0b01000101
         POP = 0b01000110
+        JMP = 0b01010100
+        CMP = 0b10100111
+        JEQ = 0b01010101
+        JNE = 0b01010110
 
         branches = {}
 
         def handle_HLT():
+            self.running = False
             return 0
 
         def handle_LDI():
-            register_address = self.ram_read(pc + 1)
-            value = self.ram_read(pc + 2)
+            register_address = self.ram_read(self.pc + 1)
+            value = self.ram_read(self.pc + 2)
             self.reg[register_address] = value
             return 3
 
         def handle_PRN():
-            register_address = self.ram_read(pc + 1)
+            register_address = self.ram_read(self.pc + 1)
             value = self.reg[register_address]
             print(value)
             return 2
 
         def handle_MUL():
-            reg_a = self.ram_read(pc + 1)
-            reg_b = self.ram_read(pc + 2)
+            reg_a = self.ram_read(self.pc + 1)
+            reg_b = self.ram_read(self.pc + 2)
             self.alu('MUL', reg_a, reg_b)
             return 3
 
         def handle_PUSH():
             self.reg[7] -= 1
             sp = self.reg[7]
-
-            index = self.ram_read(pc + 1)
+            index = self.ram_read(self.pc + 1)
             value = self.reg[index]
             self.ram_write(sp, value)
             return 2
 
         def handle_POP():
             sp = self.reg[7]
-            index = self.ram_read(pc + 1)
+            index = self.ram_read(self.pc + 1)
             value = self.ram_read(sp)
             self.reg[index] = value
             self.reg[7] += 1
             return 2
+        
+        def handle_JMP():
+            index = self.ram_read(self.pc + 1)
+            self.pc = self.reg[index]
+            return 0
+
+        def handle_CMP():
+            reg_a = self.ram_read(self.pc + 1)
+            reg_b = self.ram_read(self.pc + 2)
+            self.alu('CMP', reg_a, reg_b)
+            return 3
+
+        def handle_JEQ():
+            if self.flags & 0b00000001 != 0:
+                index = self.ram_read(self.pc + 1)
+                self.pc = self.reg[index]
+                return 0
+            else:
+                return 2
+
+        def handle_JNE():
+            if self.flags & 0b00000001 == 0:
+                index = self.ram_read(self.pc + 1)
+                self.pc = self.reg[index]
+                return 0
+            else:
+                return 2
 
         branches[HLT] = handle_HLT
         branches[LDI] = handle_LDI
@@ -119,12 +163,15 @@ class CPU:
         branches[MUL] = handle_MUL
         branches[PUSH] = handle_PUSH
         branches[POP] = handle_POP
+        branches[JMP] = handle_JMP
+        branches[CMP] = handle_CMP
+        branches[JEQ] = handle_JEQ
+        branches[JNE] = handle_JNE
 
-        pc = 0
-
-        while running:
-            opcode = self.ram_read(pc)
-            op_length = branches[opcode]()
-            if op_length == 0:
-                running = False
-            pc += op_length
+        while self.running:
+            opcode = self.ram_read(self.pc)
+            if opcode in branches:
+                op_length = branches[opcode]()
+            else:
+                raise Exception('Invalid opcode')
+            self.pc += op_length
