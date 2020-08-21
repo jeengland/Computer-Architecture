@@ -2,41 +2,55 @@
 
 import sys
 
+
 class CPU:
     """Main CPU class."""
 
     def __init__(self):
         """Construct a new CPU."""
-        pass
+        self.ram = [0] * 256
+        self.reg = [0] * 8
+        self.pc = 0
+        self.running = True
+        self.flags = 0b00000000
 
-    def load(self):
+    def ram_read(self, address):
+        return self.ram[address]
+
+    def ram_write(self, address, value):
+        self.ram[address] = value
+
+    def load(self, filename):
         """Load a program into memory."""
 
         address = 0
 
-        # For now, we've just hardcoded a program:
-
-        program = [
-            # From print8.ls8
-            0b10000010, # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111, # PRN R0
-            0b00000000,
-            0b00000001, # HLT
-        ]
+        file = open(filename, 'r')
+        lines = file.readlines()
+        inv = ['\n', '#']
+        program = [int(line[:8], 2) for line in lines if line[0] not in inv]
 
         for instruction in program:
             self.ram[address] = instruction
             address += 1
-
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
 
         if op == "ADD":
             self.reg[reg_a] += self.reg[reg_b]
-        #elif op == "SUB": etc
+        elif op == "MUL":
+            self.reg[reg_a] *= self.reg[reg_b]
+        elif op == "CMP":
+            self.flags = 0b00000000
+            a = self.reg[reg_a]
+            b = self.reg[reg_b]
+            if a == b:
+                self.flags |= 0b00000001
+            elif a > b:
+                self.flags |= 0b00000010
+            else:
+                self.flags |= 0b00000100
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -48,8 +62,8 @@ class CPU:
 
         print(f"TRACE: %02X | %02X %02X %02X |" % (
             self.pc,
-            #self.fl,
-            #self.ie,
+            # self.fl,
+            # self.ie,
             self.ram_read(self.pc),
             self.ram_read(self.pc + 1),
             self.ram_read(self.pc + 2)
@@ -62,4 +76,102 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
-        pass
+
+        running = True
+
+        HLT = 0b00000001
+        LDI = 0b10000010
+        PRN = 0b01000111
+        MUL = 0b10100010
+        PUSH = 0b01000101
+        POP = 0b01000110
+        JMP = 0b01010100
+        CMP = 0b10100111
+        JEQ = 0b01010101
+        JNE = 0b01010110
+
+        branches = {}
+
+        def handle_HLT():
+            self.running = False
+            return 0
+
+        def handle_LDI():
+            register_address = self.ram_read(self.pc + 1)
+            value = self.ram_read(self.pc + 2)
+            self.reg[register_address] = value
+            return 3
+
+        def handle_PRN():
+            register_address = self.ram_read(self.pc + 1)
+            value = self.reg[register_address]
+            print(value)
+            return 2
+
+        def handle_MUL():
+            reg_a = self.ram_read(self.pc + 1)
+            reg_b = self.ram_read(self.pc + 2)
+            self.alu('MUL', reg_a, reg_b)
+            return 3
+
+        def handle_PUSH():
+            self.reg[7] -= 1
+            sp = self.reg[7]
+            index = self.ram_read(self.pc + 1)
+            value = self.reg[index]
+            self.ram_write(sp, value)
+            return 2
+
+        def handle_POP():
+            sp = self.reg[7]
+            index = self.ram_read(self.pc + 1)
+            value = self.ram_read(sp)
+            self.reg[index] = value
+            self.reg[7] += 1
+            return 2
+        
+        def handle_JMP():
+            index = self.ram_read(self.pc + 1)
+            self.pc = self.reg[index]
+            return 0
+
+        def handle_CMP():
+            reg_a = self.ram_read(self.pc + 1)
+            reg_b = self.ram_read(self.pc + 2)
+            self.alu('CMP', reg_a, reg_b)
+            return 3
+
+        def handle_JEQ():
+            if self.flags & 0b00000001 != 0:
+                index = self.ram_read(self.pc + 1)
+                self.pc = self.reg[index]
+                return 0
+            else:
+                return 2
+
+        def handle_JNE():
+            if self.flags & 0b00000001 == 0:
+                index = self.ram_read(self.pc + 1)
+                self.pc = self.reg[index]
+                return 0
+            else:
+                return 2
+
+        branches[HLT] = handle_HLT
+        branches[LDI] = handle_LDI
+        branches[PRN] = handle_PRN
+        branches[MUL] = handle_MUL
+        branches[PUSH] = handle_PUSH
+        branches[POP] = handle_POP
+        branches[JMP] = handle_JMP
+        branches[CMP] = handle_CMP
+        branches[JEQ] = handle_JEQ
+        branches[JNE] = handle_JNE
+
+        while self.running:
+            opcode = self.ram_read(self.pc)
+            if opcode in branches:
+                op_length = branches[opcode]()
+            else:
+                raise Exception('Invalid opcode')
+            self.pc += op_length
